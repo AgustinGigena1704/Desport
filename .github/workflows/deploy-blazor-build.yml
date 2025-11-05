@@ -9,7 +9,10 @@ on:
 env:
   DOTNET_VERSION: '8.0.x'
   BLAZOR_PROJECT_NAME: CCC # Asegúrate de que esto coincida con el nombre de tu proyecto Blazor
-  BLAZOR_PROJECT_PATH: src/CCC/${{ env.BLAZOR_PROJECT_NAME }}.csproj # Ruta al archivo .csproj
+  # CORRECCIÓN AQUÍ: Usamos la variable directamente en la string
+  BLAZOR_PROJECT_PATH: src/CCC/CCC.csproj # Ruta al archivo .csproj. Ahora es una string literal.
+  # Si quieres que sea dinámico, la mejor forma es reconstruirla en cada paso
+  # o definir BLazor_Project_Path usando solo el nombre y construyendo en el run.
   DEPLOY_DIR: deploy/wwwroot # Directorio donde se almacenarán los archivos para Render
 
 jobs:
@@ -17,7 +20,6 @@ jobs:
     name: Build Blazor WebAssembly
     runs-on: ubuntu-latest
     
-    # Permisos necesarios para escribir de vuelta al repositorio
     permissions:
       contents: write 
 
@@ -31,11 +33,11 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Restore dependencies
+      # Acceso correcto a las variables de entorno dentro de un paso 'run'
       run: dotnet restore ${{ env.BLAZOR_PROJECT_PATH }}
     
     - name: Publish Blazor WebAssembly
       run: |
-        # Usamos /p:BasePath=/ porque Render Static Site lo servirá desde su raíz
         dotnet publish ${{ env.BLAZOR_PROJECT_PATH }} \
           -c Release \
           -o ${{ env.DEPLOY_DIR }} \
@@ -45,8 +47,6 @@ jobs:
     
     - name: Configurar URL de API (opcional, si Blazor lo lee de appsettings.json)
       run: |
-        # Crear/actualizar appsettings.json con la URL de producción de Render
-        # Asegúrate de que este secret (API_BASE_URL) exista en tu repositorio GitHub
         cat > ${{ env.DEPLOY_DIR }}/appsettings.json <<EOF
         {
           "ApiBaseUrl": "${{ secrets.API_BASE_URL }}"
@@ -57,20 +57,13 @@ jobs:
 
     - name: Configurar para Static Site (si es necesario)
       run: |
-        # Añadir .nojekyll (Aunque no es GH Pages, no hace daño y es una buena práctica para static sites)
         touch ${{ env.DEPLOY_DIR }}/.nojekyll
-        
-        # Crear 404.html para SPA routing (muy importante para Blazor en static sites)
         cp ${{ env.DEPLOY_DIR }}/index.html ${{ env.DEPLOY_DIR }}/404.html
-        
         echo "✅ Configuración adicional para Static Site completada."
 
     - name: Commit y Push los archivos generados
-      uses: stefanzweifel/git-auto-commit-action@v5 # Esta acción hace el commit y push
+      uses: stefanzweifel/git-auto-commit-action@v5
       with:
         commit_message: "Build: Blazor WASM for Render Static Site"
-        branch: main # Asegúrate de que sea tu rama principal
+        branch: main
         file_pattern: ${{ env.DEPLOY_DIR }}/**
-        # Si prefieres una rama separada para los builds:
-        # branch: gh-pages # o cualquier otra rama
-        # commit_options: '--no-verify --no-edit' # Si quieres un mensaje de commit más simple
