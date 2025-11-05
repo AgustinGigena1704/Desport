@@ -1,11 +1,9 @@
-using CCC;
-using CCC.Api.Services;
 using CCC.Services;
 using CCC.Services.Auth;
 using CCC.Services.Notification;
 using CCC.Services.Utils;
 using CCC.Shared;
-using Microsoft.AspNetCore.Components;
+using CCC;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
@@ -47,15 +45,6 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddSingleton<AuthenticationStateProvider, AuthStateProvider>();
 builder.Services.AddSingleton<LoadingService>();
 builder.Services.AddScoped<NotificationService>();
-builder.Services.AddScoped<NavigationManager>(sp =>
-{
-    var navManager = sp.GetRequiredService<NavigationManager>();
-    var baseUri = navManager.BaseUri;
-
-    var newUri = new Uri(new Uri(baseUri), "/Desport/").ToString();
-
-    return new NavManager(newUri, navManager.Uri);
-});
 
 // ==========================================
 // MODIFICADO: Leer API URL desde appsettings.json
