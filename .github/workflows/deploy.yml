@@ -8,6 +8,8 @@ on:
 
 env:
   DOTNET_VERSION: '8.0.x'
+  # Nombre del proyecto Blazor dentro de src/ (ej. CCC)
+  BLAZOR_PROJECT_NAME: CCC 
 
 jobs:
   # Job 1: Trigger deploy de API en Render
@@ -19,12 +21,15 @@ jobs:
     - name: Trigger Render Deploy
       run: |
         echo "🚀 Triggering Render deploy..."
+        # Usar curl de forma más simple, POST es el método por defecto si hay datos, pero para un webhook simple, GET/POST sin cuerpo funciona.
+        # Es mejor usar el método explícito POST si el webhook lo requiere.
         curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
     
     - name: Wait for deployment
       run: |
         echo "⏳ Esperando que Render termine el deploy..."
-        sleep 30
+        # Considera usar una acción que espere una URL específica, o aumentar el tiempo si la API tarda en arrancar.
+        sleep 60 # Aumentado a 60 segundos por seguridad.
 
   # Job 2: Deploy Blazor WebAssembly a GitHub Pages
   deploy-blazor:
@@ -50,30 +55,30 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Restore dependencies
-      run: dotnet restore src/CCC/CCC.csproj
+      run: dotnet restore src/${{ env.BLAZOR_PROJECT_NAME }}/${{ env.BLAZOR_PROJECT_NAME }}.csproj
     
     - name: Publish Blazor WebAssembly
       run: |
-        dotnet publish src/CCC/CCC.csproj \
-          -c Release \
-          -o publish \
-          /p:GHPages=true
-    
-    - name: Configurar para GitHub Pages
-      run: |
-        # Obtener nombre del repo
+        # Obtener nombre del repositorio para la base href
         REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
         
-        # Cambiar base href en index.html
-        sed -i "s|<base href=\"/home\" />|<base href=\"/$REPO_NAME/\" />|g" publish/wwwroot/index.html
+        dotnet publish src/${{ env.BLAZOR_PROJECT_NAME }}/${{ env.BLAZOR_PROJECT_NAME }}.csproj \
+          -c Release \
+          -o publish \
+          /p:GHPages=true \
+          /p:BasePath=/$REPO_NAME/ # ¡IMPORTANTE! Esto configura correctamente la base href.
         
-        # Añadir .nojekyll
+        echo "✅ Blazor WebAssembly publicado con BasePath=/$REPO_NAME/"
+
+    - name: Configurar para GitHub Pages
+      run: |
+        # Añadir .nojekyll (ya no necesitamos tocar index.html porque BasePath lo maneja)
         touch publish/wwwroot/.nojekyll
         
         # Crear 404.html para SPA routing
         cp publish/wwwroot/index.html publish/wwwroot/404.html
         
-        echo "✅ Configuración completada para: /$REPO_NAME/"
+        echo "✅ Configuración adicional de GitHub Pages completada."
     
     - name: Configurar URL de API
       run: |
