@@ -46,13 +46,18 @@ builder.Services.AddSingleton<AuthenticationStateProvider, AuthStateProvider>();
 builder.Services.AddSingleton<LoadingService>();
 builder.Services.AddScoped<NotificationService>();
 
+// ==========================================
+// MODIFICADO: Leer API URL desde appsettings.json
+// ==========================================
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "https://localhost:7016/";
+
 builder.Services.AddHttpClient(BACK_END_API_NAME, async (serviceProvider, client) =>
 {
-    client.BaseAddress = new Uri("https://localhost:7016/");
-    
+    client.BaseAddress = new Uri(apiBaseUrl);
+
     var cookieService = serviceProvider.GetRequiredService<CookieService>();
     var token = await cookieService.GetCookie(FIREBASE_AUTH_TOKEN);
-    
+
     if (!string.IsNullOrEmpty(token))
     {
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

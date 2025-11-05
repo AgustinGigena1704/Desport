@@ -29,19 +29,33 @@ builder.WebHost.UseSentry(opt =>
         return @event;
     });
 });
+
+// ==========================================
+// CORS MODIFICADO para GitHub Pages
+// ==========================================
 builder.Services.AddCors(opt =>
 {
     opt.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        // Leer orígenes permitidos desde configuración
+        var allowedOrigins = builder.Configuration
+            .GetSection("AllowedOrigins")
+            .Get<string[]>() ?? new[]
+            {
+                "http://localhost:5249",
+                "https://localhost:7011"
+            };
+
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .AllowCredentials();
     });
 });
+
 builder.Services.AddControllers();
 builder.Services.AddScoped<IMiddleware, CustomMiddleware>();
 builder.Services.AddScoped<IAuthService, FireBaseService>();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -92,12 +106,41 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-var serviceAccountPath = Path.Combine(Directory.GetCurrentDirectory(), "Secrets/firebase-proyect-data.json");
+// ==========================================
+// FIREBASE MODIFICADO para leer desde variable de entorno
+// ==========================================
+string? firebaseJson = Environment.GetEnvironmentVariable("FIREBASE_CONFIG");
+GoogleCredential credential;
+
+if (!string.IsNullOrEmpty(firebaseJson))
+{
+    // Producción: desde variable de entorno en Render
+    credential = GoogleCredential.FromJson(firebaseJson);
+}
+else
+{
+    // Desarrollo: desde archivo local
+    var serviceAccountPath = Path.Combine(Directory.GetCurrentDirectory(), "Secrets/firebase-proyect-data.json");
+    if (File.Exists(serviceAccountPath))
+    {
+        credential = GoogleCredential.FromFile(serviceAccountPath);
+    }
+    else
+    {
+        throw new FileNotFoundException("Firebase configuration not found. Set FIREBASE_CONFIG environment variable or add Secrets/firebase-proyect-data.json file.");
+    }
+}
+
 FirebaseApp.Create(new AppOptions
 {
-    Credential = GoogleCredential.FromFile(serviceAccountPath),
+    Credential = credential,
     ProjectId = projectId
 });
+
+// ==========================================
+// HEALTH CHECKS - Nuevo
+// ==========================================
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -109,12 +152,24 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Mostrar Swagger también en producción (opcional)
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "CCC API V1");
+        c.RoutePrefix = "swagger";
+    });
+}
 
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Health check endpoint para monitoreo
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
