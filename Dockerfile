@@ -1,35 +1,19 @@
-# Dockerfile
+# Dockerfile.Blazor
+# Stage 1: Build the Blazor WebAssembly app
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-WORKDIR /src
-
-# Copiar archivos de proyecto
-COPY ["src/CCC.Shared/CCC.Shared.csproj", "src/CCC.Shared/"]
-COPY ["src/CCC.Api/CCC.Api.csproj", "src/CCC.Api/"]
-
-# Restaurar dependencias
-RUN dotnet restore "src/CCC.Api/CCC.Api.csproj"
-
-# Copiar todo el código fuente
-COPY . .
-
-# Build y Publish
-WORKDIR "/src/src/CCC.Api"
-RUN dotnet build "CCC.Api.csproj" -c Release -o /app/build
-RUN dotnet publish "CCC.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-# Imagen final
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 
-# Instalar certificados SSL
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+# Copia el archivo de la solución y los proyectos relevantes para Blazor
+COPY *.sln .
+COPY src/CCC.Shared/*.csproj src/CCC.Shared/
+COPY src/CCC/*.csproj src/CCC/
 
-EXPOSE 8080
+# Restaura dependencias
+RUN dotnet restore
 
-COPY --from=build /app/publish .
+# Copia todo el código fuente
+COPY . .
 
-# Variables de entorno
-ENV ASPNETCORE_URLS=http://+:8080
-ENV ASPNETCORE_ENVIRONMENT=Production
-
-ENTRYPOINT ["dotnet", "CCC.Api.dll"]
+# Publica la aplicación Blazor WebAssembly con la base href correcta
+WORKDIR /app/src/CCC # Cambia a la carpeta de tu proyecto Blazor
+RUN dotnet publish -c Release -o /app/output --no-build /p:BasePath=/
