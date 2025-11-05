@@ -119,6 +119,16 @@ if (!string.IsNullOrEmpty(firebaseJson))
         // Validar que el JSON sea válido
         var jsonObject = System.Text.Json.JsonDocument.Parse(firebaseJson);
 
+        // Reemplazar \n en la clave privada por saltos de línea reales
+        if (jsonObject.RootElement.TryGetProperty("private_key", out var privateKeyElement))
+        {
+            var privateKey = privateKeyElement.GetString();
+            if (!string.IsNullOrEmpty(privateKey))
+            {
+                firebaseJson = firebaseJson.Replace(privateKey, privateKey.Replace("\\n", "\n"));
+            }
+        }
+
         // Producción: desde variable de entorno en Render
         credential = GoogleCredential.FromJson(firebaseJson);
     }
@@ -139,6 +149,16 @@ else
             var fileContent = File.ReadAllText(serviceAccountPath);
             // Validar que el JSON sea válido
             var jsonObject = System.Text.Json.JsonDocument.Parse(fileContent);
+
+            // Reemplazar \n en la clave privada por saltos de línea reales
+            if (jsonObject.RootElement.TryGetProperty("private_key", out var privateKeyElement))
+            {
+                var privateKey = privateKeyElement.GetString();
+                if (!string.IsNullOrEmpty(privateKey))
+                {
+                    fileContent = fileContent.Replace(privateKey, privateKey.Replace("\\n", "\n"));
+                }
+            }
 
             credential = GoogleCredential.FromJson(fileContent);
         }
