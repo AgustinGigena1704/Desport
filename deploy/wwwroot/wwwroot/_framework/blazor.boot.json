@@ -1,7 +1,7 @@
 {
   "mainAssemblyName": "CCC",
   "resources": {
-    "hash": "sha256-juIloxAt8CXwx9R0PNiUZPHycWYW4topO/865Dl8Znk=",
+    "hash": "sha256-2iLDJLUZ6F5CZ7yosvwSku2pf/gV2COCnwWR6nfiV5o=",
     "jsModuleNative": {
       "dotnet.native.js": "sha256-9Fzd5We95Rp03dEKIAbYjPDR3eWyLbmjMlYStvxyiok="
     },
@@ -18,8 +18,8 @@
     },
     "coreAssembly": {},
     "assembly": {
-      "CCC.Shared.wasm": "sha256-uP+aMh0ee6nyMiK7ayKdjekbpA7OGymKm783QqkvoNA=",
-      "CCC.wasm": "sha256-pXLiEzH+i81GEdYT7BL7hgHmxfg6zdHKdn/koMbTUQ4=",
+      "CCC.Shared.wasm": "sha256-kan7sSg7iMItyJqrbAE3RM5rO3cDEMkTINhrOfKreOM=",
+      "CCC.wasm": "sha256-knrJ2+dQtZHpSnTqheHKzGqjwA4KJ1vDYrRHCeiDFyc=",
       "CodeBeam.MudBlazor.Extensions.wasm": "sha256-f6fp++hQ8RQZz+yNeZZT8dwduC1euWHTg1AQwqyQ0DQ=",
       "CsvHelper.wasm": "sha256-BXz5RCSFBrg3KCDZD4lxgyWmw1YH6vUT0N/oIQdCKfA=",
       "Microsoft.AspNetCore.Authorization.wasm": "sha256-hP9eIBgQDgD+ygaAAw/myTzh8JK9Y6jLB7Kb32SJiQY=",
