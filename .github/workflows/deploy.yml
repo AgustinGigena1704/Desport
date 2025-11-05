@@ -1,50 +1,26 @@
-# .github/workflows/deploy.yml
-name: Deploy API y Blazor
+# .github/workflows/deploy-blazor-build.yml
+name: Build Blazor for Render Static Site
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch: # Permite ejecutar manualmente
 
 env:
   DOTNET_VERSION: '8.0.x'
-  # Nombre del proyecto Blazor dentro de src/ (ej. CCC)
-  BLAZOR_PROJECT_NAME: CCC 
+  BLAZOR_PROJECT_NAME: CCC # Asegúrate de que esto coincida con el nombre de tu proyecto Blazor
+  BLAZOR_PROJECT_PATH: src/CCC/${{ env.BLAZOR_PROJECT_NAME }}.csproj # Ruta al archivo .csproj
+  DEPLOY_DIR: deploy/wwwroot # Directorio donde se almacenarán los archivos para Render
 
 jobs:
-  # Job 1: Trigger deploy de API en Render
-  deploy-api-render:
-    name: Deploy API a Render
+  build-blazor:
+    name: Build Blazor WebAssembly
     runs-on: ubuntu-latest
     
-    steps:
-    - name: Trigger Render Deploy
-      run: |
-        echo "🚀 Triggering Render deploy..."
-        # Usar curl de forma más simple, POST es el método por defecto si hay datos, pero para un webhook simple, GET/POST sin cuerpo funciona.
-        # Es mejor usar el método explícito POST si el webhook lo requiere.
-        curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}"
-    
-    - name: Wait for deployment
-      run: |
-        echo "⏳ Esperando que Render termine el deploy..."
-        # Considera usar una acción que espere una URL específica, o aumentar el tiempo si la API tarda en arrancar.
-        sleep 60 # Aumentado a 60 segundos por seguridad.
-
-  # Job 2: Deploy Blazor WebAssembly a GitHub Pages
-  deploy-blazor:
-    name: Deploy Blazor a GitHub Pages
-    runs-on: ubuntu-latest
-    
+    # Permisos necesarios para escribir de vuelta al repositorio
     permissions:
-      contents: read
-      pages: write
-      id-token: write
-    
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    
+      contents: write 
+
     steps:
     - name: Checkout código
       uses: actions/checkout@v4
@@ -55,56 +31,46 @@ jobs:
         dotnet-version: ${{ env.DOTNET_VERSION }}
     
     - name: Restore dependencies
-      run: dotnet restore src/${{ env.BLAZOR_PROJECT_NAME }}/${{ env.BLAZOR_PROJECT_NAME }}.csproj
+      run: dotnet restore ${{ env.BLAZOR_PROJECT_PATH }}
     
     - name: Publish Blazor WebAssembly
       run: |
-        # Obtener nombre del repositorio para la base href
-        REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2)
-        
-        dotnet publish src/${{ env.BLAZOR_PROJECT_NAME }}/${{ env.BLAZOR_PROJECT_NAME }}.csproj \
+        # Usamos /p:BasePath=/ porque Render Static Site lo servirá desde su raíz
+        dotnet publish ${{ env.BLAZOR_PROJECT_PATH }} \
           -c Release \
-          -o publish \
-          /p:GHPages=true \
-          /p:BasePath=/$REPO_NAME/ # ¡IMPORTANTE! Esto configura correctamente la base href.
+          -o ${{ env.DEPLOY_DIR }} \
+          /p:BasePath=/
         
-        echo "✅ Blazor WebAssembly publicado con BasePath=/$REPO_NAME/"
-
-    - name: Configurar para GitHub Pages
-      run: |
-        # Añadir .nojekyll (ya no necesitamos tocar index.html porque BasePath lo maneja)
-        touch publish/wwwroot/.nojekyll
-        
-        # Crear 404.html para SPA routing
-        cp publish/wwwroot/index.html publish/wwwroot/404.html
-        
-        echo "✅ Configuración adicional de GitHub Pages completada."
+        echo "✅ Blazor WebAssembly publicado en ${{ env.DEPLOY_DIR }}"
     
-    - name: Configurar URL de API
+    - name: Configurar URL de API (opcional, si Blazor lo lee de appsettings.json)
       run: |
         # Crear/actualizar appsettings.json con la URL de producción de Render
-        cat > publish/wwwroot/appsettings.json <<EOF
+        # Asegúrate de que este secret (API_BASE_URL) exista en tu repositorio GitHub
+        cat > ${{ env.DEPLOY_DIR }}/appsettings.json <<EOF
         {
           "ApiBaseUrl": "${{ secrets.API_BASE_URL }}"
         }
         EOF
         
         echo "✅ API configurada: ${{ secrets.API_BASE_URL }}"
-    
-    - name: Setup Pages
-      uses: actions/configure-pages@v4
-    
-    - name: Upload artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: 'publish/wwwroot'
-    
-    - name: Deploy to GitHub Pages
-      id: deployment
-      uses: actions/deploy-pages@v4
-    
-    - name: Resumen del Deploy
+
+    - name: Configurar para Static Site (si es necesario)
       run: |
-        echo "🚀 Deploy completado!"
-        echo "📱 Frontend: ${{ steps.deployment.outputs.page_url }}"
-        echo "🔌 API: ${{ secrets.API_BASE_URL }}"
+        # Añadir .nojekyll (Aunque no es GH Pages, no hace daño y es una buena práctica para static sites)
+        touch ${{ env.DEPLOY_DIR }}/.nojekyll
+        
+        # Crear 404.html para SPA routing (muy importante para Blazor en static sites)
+        cp ${{ env.DEPLOY_DIR }}/index.html ${{ env.DEPLOY_DIR }}/404.html
+        
+        echo "✅ Configuración adicional para Static Site completada."
+
+    - name: Commit y Push los archivos generados
+      uses: stefanzweifel/git-auto-commit-action@v5 # Esta acción hace el commit y push
+      with:
+        commit_message: "Build: Blazor WASM for Render Static Site"
+        branch: main # Asegúrate de que sea tu rama principal
+        file_pattern: ${{ env.DEPLOY_DIR }}/**
+        # Si prefieres una rama separada para los builds:
+        # branch: gh-pages # o cualquier otra rama
+        # commit_options: '--no-verify --no-edit' # Si quieres un mensaje de commit más simple
